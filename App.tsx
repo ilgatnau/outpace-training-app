@@ -38,6 +38,8 @@ import {
   vo2Cooper,
 } from "./src/domain";
 import { readState, writeState } from "./src/storage";
+import { exerciseGuides } from "./src/exercises";
+import { ExerciseGuide } from "./src/ExerciseGuide";
 const C = {
   bg: "#09130F",
   card: "#14231C",
@@ -647,10 +649,13 @@ function RoutineCard({
         </View>
       </View>
       {routine.exercises.map((e) => (
-        <Text key={e.id} style={s.body}>
-          {e.name} · {e.sets} × {e.reps} · {e.work}s work
-          {e.distance ? ` · ${e.distance} m` : ""}
-        </Text>
+        <View key={e.id}>
+          <Text style={s.body}>
+            {e.name} · {e.sets} × {e.reps} · {e.work}s work
+            {e.distance ? ` · ${e.distance} m` : ""}
+          </Text>
+          <ExerciseGuide exercise={e} />
+        </View>
       ))}
       <Button title="Start session →" onPress={onStart} />
     </View>
@@ -735,6 +740,33 @@ function RoutineForm({
       setRest: "120",
       distance: "",
     });
+  const [selectedGuide, setSelectedGuide] = useState<string | undefined>();
+  function selectPreset(id: string) {
+    setSelectedGuide(id || undefined);
+    const guide = exerciseGuides.find((g) => g.id === id);
+    if (!guide) {
+      set({
+        name: "",
+        sets: "3",
+        reps: "5",
+        work: "30",
+        rest: "30",
+        setRest: "120",
+        distance: "",
+      });
+      return;
+    }
+    const d = guide.defaults;
+    set({
+      name: guide.title,
+      sets: String(d.sets),
+      reps: String(d.reps),
+      work: String(d.work),
+      rest: String(d.rest),
+      setRest: String(d.setRest),
+      distance: d.distance ? String(d.distance) : "",
+    });
+  }
   function add() {
     const nums = ["sets", "reps", "work"] as const;
     if (
@@ -770,6 +802,7 @@ function RoutineForm({
         rest: +fields.rest,
         setRest: +fields.setRest,
         distance: fields.distance ? +fields.distance : undefined,
+        guideId: selectedGuide,
       },
     ]);
     set({ ...fields, name: "" });
@@ -786,6 +819,7 @@ function RoutineForm({
           <Text style={s.body}>
             {e.sets} × {e.reps} · {e.work}s work · {e.rest}s / {e.setRest}s rest
           </Text>
+          <ExerciseGuide exercise={e} />
           <TouchableOpacity
             onPress={() => setItems(items.filter((x) => x.id !== e.id))}
           >
@@ -795,6 +829,34 @@ function RoutineForm({
       ))}
       <View style={s.card}>
         <Text style={s.h2}>Add exercise</Text>
+        <Text style={s.label}>Start with a ready-made exercise</Text>
+        <Text style={s.body}>
+          Choose a preset to fill in the setup. Then adjust the name, distance,
+          sets, work, and recovery before adding it.
+        </Text>
+        <Chips
+          values={[...exerciseGuides.map((g) => g.title), "Custom exercise"]}
+          selected={
+            exerciseGuides.find((g) => g.id === selectedGuide)?.title ||
+            "Custom exercise"
+          }
+          onSelect={(title) =>
+            selectPreset(
+              exerciseGuides.find((g) => g.title === title)?.id || "",
+            )
+          }
+        />
+        {selectedGuide && (
+          <ExerciseGuide
+            key={selectedGuide}
+            exercise={{
+              name: fields.name,
+              guideId: selectedGuide,
+              distance: +fields.distance || undefined,
+            }}
+            expanded
+          />
+        )}
         {Object.entries(fields).map(([k, v]) => (
           <Field
             key={k}
@@ -921,6 +983,12 @@ function Timer({
           Phase {index + 1} of {list.length}
         </Text>
       </View>
+      {!finished && (
+        <ExerciseGuide
+          key={p.exerciseId}
+          exercise={routine.exercises.find((e) => e.id === p.exerciseId)!}
+        />
+      )}
       <Text style={s.body}>
         Sound and vibration cues are enabled. Background notification delivery
         is not guaranteed; keep the app visible during timed work.

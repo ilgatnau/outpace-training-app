@@ -42,7 +42,7 @@ Body shape is represented by optional adult waist measurements rather than subje
 
 ## Verification in this workspace
 
-- 19 unit tests pass (`npm test`).
+- 27 unit tests pass (`npm test`).
 - TypeScript passes (`npm run typecheck`).
 - iOS and Android JavaScript / Hermes bundle exports pass (not signed native builds).
 - Production web export passes (`npm run build:web`).
@@ -73,3 +73,11 @@ The workflow sets Android `versionCode` to `github.run_number` before Expo prebu
 Open the repository's **Releases** page or the build's summary for a direct install download. Installing a higher build number with the same app ID and signing key should update the installed app while keeping its data. The existing manually published preview remains available.
 
 The installed app name and visible branding are Outpace. The original application IDs (`app.touchline.training`) and local storage key are retained for update and data compatibility with earlier previews.
+
+## Exercise presets and illustrated guides
+
+The routine builder includes 13 editable presets: 10 m acceleration, 20 m sprint, 30 m sprint, cone dribbling, run/walk intervals, 20 m shuttles, Yo-Yo IR1 practice, 505 change of direction, repeated 20 m sprints, steady endurance running, Cooper 12-minute test, warm-up jogging, and cool-down walking. Selecting a preset fills its name, sets, repetitions, work/recovery times, and optional distance. Edit these before adding the exercise, or use a custom exercise.
+
+Each preset has a locally bundled cone illustration plus setup instructions, movement steps, and coaching tips. Guides appear in the builder, saved routines, and the live timer. The image is a schematic; the text gives the measured setup and test protocol. Yo-Yo practice is explicitly distinguished from the official audio-paced test. Cooper and other fitness tests require appropriate supervision and may not suit children.
+
+Existing starter exercises receive matching guides without changing their stored data. New exercises keep an optional guide ID, so renaming a preset does not lose its instructions. Unknown custom exercises do not receive invented technique advice. The images work offline and are included in APK builds. See `artifacts/exercise-guide.png` for a preview.

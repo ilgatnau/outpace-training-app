@@ -28,6 +28,7 @@ export function validateBackup(raw: string): State {
       if (
         !obj(e) ||
         !text(e.name) ||
+        (e.guideId !== undefined && !text(e.guideId)) ||
         !Number.isInteger(e.sets) ||
         !num(e.sets, 1, 20) ||
         !Number.isInteger(e.reps) ||

@@ -14,6 +14,7 @@ export type Exercise = {
   rest: number;
   setRest: number;
   distance?: number;
+  guideId?: string;
 };
 export type Routine = { id: string; name: string; exercises: Exercise[] };
 export type Result = {
@@ -114,6 +115,7 @@ export type Phase = {
   seconds: number;
   recovery: boolean;
   exercise: string;
+  exerciseId: string;
   set: number;
   rep: number;
 };
@@ -127,6 +129,7 @@ export function phases(routine: Routine): Phase[] {
           seconds: e.work,
           recovery: false,
           exercise: e.name,
+          exerciseId: e.id,
           set: s,
           rep: r,
         });
@@ -137,6 +140,7 @@ export function phases(routine: Routine): Phase[] {
             seconds: rest,
             recovery: true,
             exercise: e.name,
+            exerciseId: e.id,
             set: s,
             rep: r,
           });
