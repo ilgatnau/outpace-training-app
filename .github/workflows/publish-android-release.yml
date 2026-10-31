@@ -1,0 +1,79 @@
+name: Publish Android preview release
+
+on:
+  workflow_dispatch:
+    inputs:
+      build_run_id:
+        description: Successful Build Android APK run ID
+        required: true
+        default: '41181200810'
+      release_tag:
+        description: New preview release tag
+        required: true
+        default: v0.1.0-preview.1
+
+permissions:
+  contents: write
+  actions: read
+
+concurrency:
+  group: publish-android-preview
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      BUILD_RUN_ID: ${{ inputs.build_run_id }}
+      RELEASE_TAG: ${{ inputs.release_tag }}
+    steps:
+      - name: Validate source build and release tag
+        id: source
+        shell: bash
+        run: |
+          [[ "$BUILD_RUN_ID" =~ ^[0-9]+$ ]]
+          [[ "$RELEASE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+-preview\.[0-9]+$ ]]
+          gh api "repos/$GH_REPO/actions/runs/$BUILD_RUN_ID" > source.json
+          jq -e '.conclusion == "success" and .head_branch == "main" and .path == ".github/workflows/android-apk.yml" and (.event == "push" or .event == "workflow_dispatch")' source.json
+          echo "sha=$(jq -r .head_sha source.json)" >> "$GITHUB_OUTPUT"
+
+      - name: Download the successful build artifact
+        uses: actions/download-artifact@v4
+        with:
+          github-token: ${{ github.token }}
+          run-id: ${{ inputs.build_run_id }}
+          pattern: touchline-android-preview-*
+          merge-multiple: true
+          path: apk
+
+      - name: Verify APK checksum
+        working-directory: apk
+        run: |
+          test -s touchline-preview.apk
+          sha256sum --check touchline-preview.apk.sha256
+
+      - name: Publish APK as a GitHub prerelease
+        env:
+          SOURCE_SHA: ${{ steps.source.outputs.sha }}
+        run: |
+          cat > release-notes.md <<'NOTES'
+          Download **touchline-preview.apk** below directly on your Android phone, then open it to install. Android may ask you to allow installation from your browser.
+
+          **Outpace training app — preview**
+          - Local player profiles, training routines and interval timer.
+          - Performance results, VO₂ max estimates and progress charts.
+          - On-device storage and backup export/restore.
+          - ARM64 phones and x86_64 emulators; no Expo Go or backend required.
+
+          This is a development-signed testing build. The current app label is Touchline. Export your local data before uninstalling or switching signing keys. A SHA-256 checksum is included as a separate download.
+          NOTES
+          gh release create "$RELEASE_TAG" \
+            --target "$SOURCE_SHA" \
+            --title "Outpace $RELEASE_TAG" \
+            --prerelease \
+            --notes-file release-notes.md \
+            apk/touchline-preview.apk \
+            apk/touchline-preview.apk.sha256
