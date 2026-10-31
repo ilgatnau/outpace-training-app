@@ -1,0 +1,37 @@
+{
+  "expo": {
+    "name": "Touchline",
+    "slug": "touchline-training",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "dark",
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "app.touchline.training"
+    },
+    "android": {
+      "package": "app.touchline.training",
+      "allowBackup": false,
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#09130F"
+      }
+    },
+    "web": {
+      "bundler": "metro",
+      "favicon": "./assets/favicon.png"
+    },
+    "icon": "./assets/icon.png",
+    "plugins": [
+      [
+        "expo-splash-screen",
+        {
+          "backgroundColor": "#09130F",
+          "image": "./assets/splash-icon.png",
+          "imageWidth": 200,
+          "resizeMode": "contain"
+        }
+      ]
+    ]
+  }
+}
