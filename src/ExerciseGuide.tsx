@@ -3,6 +3,7 @@ import { Image, Text, TouchableOpacity, View } from "react-native";
 import { Exercise } from "./domain";
 import { guideForExercise } from "./exercises";
 const images = {
+  kickups: require("../assets/exercises/kickups.png"),
   sprint: require("../assets/exercises/sprint.png"),
   dribble: require("../assets/exercises/dribble.png"),
   shuttle: require("../assets/exercises/shuttle.png"),
@@ -59,7 +60,10 @@ export function ExerciseGuide({
                 onLayout={(event) =>
                   setImageWidth(event.nativeEvent.layout.width)
                 }
-                accessibilityLabel={`${guide.title}: orange cones mark the drill endpoints and lime arrows show the movement direction. Schematic illustration; see measured setup below.`}
+                accessibilityLabel={
+                  guide.illustrationDescription ||
+                  `${guide.title}: orange cones mark the drill endpoints and lime arrows show the movement direction. Schematic illustration; see measured setup below.`
+                }
                 style={{
                   width: "100%",
                   height: (imageWidth * 360) / 760,
@@ -69,8 +73,8 @@ export function ExerciseGuide({
                 resizeMode="contain"
               />
               <Text style={[text, { fontSize: 10, marginVertical: 8 }]}>
-                ILLUSTRATION · Orange cones = markers · Arrows = movement · Not
-                to scale
+                {guide.imageCaption ||
+                  "ILLUSTRATION · Orange cones = markers · Arrows = movement · Not to scale"}
               </Text>
               <Text
                 style={{ color: "#F3F7EF", fontWeight: "700", marginBottom: 6 }}

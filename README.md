@@ -42,7 +42,7 @@ Body shape is represented by optional adult waist measurements rather than subje
 
 ## Verification in this workspace
 
-- 27 unit tests pass (`npm test`).
+- 28 unit tests pass (`npm test`).
 - TypeScript passes (`npm run typecheck`).
 - iOS and Android JavaScript / Hermes bundle exports pass (not signed native builds).
 - Production web export passes (`npm run build:web`).
@@ -76,8 +76,10 @@ The installed app name and visible branding are Outpace. The original applicatio
 
 ## Exercise presets and illustrated guides
 
-The routine builder includes 13 editable presets: 10 m acceleration, 20 m sprint, 30 m sprint, cone dribbling, run/walk intervals, 20 m shuttles, Yo-Yo IR1 practice, 505 change of direction, repeated 20 m sprints, steady endurance running, Cooper 12-minute test, warm-up jogging, and cool-down walking. Selecting a preset fills its name, sets, repetitions, work/recovery times, and optional distance. Edit these before adding the exercise, or use a custom exercise.
+The routine builder includes 14 editable presets: 10 m acceleration, 20 m sprint, 30 m sprint, cone dribbling, kick-ups practice, run/walk intervals, 20 m shuttles, Yo-Yo IR1 practice, 505 change of direction, repeated 20 m sprints, steady endurance running, Cooper 12-minute test, warm-up jogging, and cool-down walking. Selecting a preset fills its name, sets, repetitions, work/recovery times, and optional distance. Edit these before adding the exercise, or use a custom exercise.
 
 Each preset has a locally bundled cone illustration plus setup instructions, movement steps, and coaching tips. Guides appear in the builder, saved routines, and the live timer. The image is a schematic; the text gives the measured setup and test protocol. Yo-Yo practice is explicitly distinguished from the official audio-paced test. Cooper and other fitness tests require appropriate supervision and may not suit children.
 
 Existing starter exercises receive matching guides without changing their stored data. New exercises keep an optional guide ID, so renaming a preset does not lose its instructions. Unknown custom exercises do not receive invented technique advice. The images work offline and are included in APK builds. See `artifacts/exercise-guide.png` for a preview.
+
+Kick-ups practice uses three 60-second sets with 45-second recovery by default. Its guide covers drop/tap/catch progressions, alternating feet, and a clear cone-marked practice space. Record the longest streak and the practice rules in session notes when comparing attempts.

@@ -3,6 +3,15 @@ import { exerciseGuides, guideForExercise } from "../src/exercises";
 import { initialState, phases } from "../src/domain";
 import { validateBackup } from "../src/backup";
 describe("exercise presets and guides", () => {
+  it("offers kick-ups as a stationary, beginner-friendly ball-skills preset", () => {
+    const guide = guideForExercise({ name: "Kick ups practice" })!;
+    expect(guide.id).toBe("kickups");
+    expect(guide.defaults.distance).toBeUndefined();
+    expect(guide.defaults).toMatchObject({ sets: 3, work: 60, setRest: 45 });
+    expect(guide.steps.join(" ")).toContain("one touch and catch");
+    expect(guide.illustrationDescription).toContain("not a running route");
+    expect(guideForExercise({ name: "Football juggling" })?.id).toBe("kickups");
+  });
   it("provides a 20 m sprint preset with meaningful recovery and an endpoint setup", () => {
     const g = exerciseGuides.find((g) => g.id === "sprint20")!;
     expect(g.defaults.distance).toBe(20);

@@ -3,7 +3,16 @@ export type Guide = {
   id: string;
   title: string;
   category: string;
-  image: "sprint" | "dribble" | "shuttle" | "interval" | "turn" | "endurance";
+  image:
+    | "sprint"
+    | "dribble"
+    | "shuttle"
+    | "interval"
+    | "turn"
+    | "endurance"
+    | "kickups";
+  illustrationDescription?: string;
+  imageCaption?: string;
   defaults: Omit<Exercise, "id" | "name" | "guideId">;
   setup: (distance?: number) => string;
   steps: string[];
@@ -90,6 +99,26 @@ export const exerciseGuides: Guide[] = [
       "Go around the finish cone, turn under control, and dribble back.",
     ],
     tip: "Look up between touches. Accuracy and close control matter more than speed.",
+  },
+  {
+    id: "kickups",
+    title: "Kick-ups practice",
+    category: "Ball skills",
+    image: "kickups",
+    illustrationDescription:
+      "A player balances on one leg and gently taps a football upward with the laces. Cones mark the edges of the practice space, not a running route.",
+    imageCaption:
+      "ILLUSTRATION · Cones mark your practice space · Gentle upward touches · Not to scale",
+    defaults: { sets: 3, reps: 1, work: 60, rest: 0, setRest: 45 },
+    setup: () =>
+      "Choose a level, clear space and use two cones to mark a practice area about 3 m wide. Keep the cones away from your feet and give each player their own ball and space.",
+    steps: [
+      "Hold the ball at waist height and drop it toward one foot. Keep the supporting knee slightly bent and watch the ball.",
+      "Lift the toes slightly and use the laces to give the ball a soft upward tap. Aim to keep it below waist height and close to your body.",
+      "Start with one touch and catch. Then try two touches before catching; gradually build toward alternating feet without a catch.",
+      "Reset calmly when the ball drops. During each work interval, practise controlled touches rather than chasing the ball. Rest between sets.",
+    ],
+    tip: "Beginners can allow a bounce between touches or use a softer ball. Record the longest streak in your session notes, and keep the same rules when comparing attempts. Use feet only; heading is not needed for this drill.",
   },
   {
     id: "intervals",
@@ -284,6 +313,8 @@ export function guideForExercise(
   const n = exercise.name.toLowerCase();
   const exact = exerciseGuides.find((g) => g.title.toLowerCase() === n);
   if (exact) return exact;
+  if (/kick[ -]?ups?|keep[ -]?y?\s*upp|juggling/.test(n))
+    return exerciseGuides.find((g) => g.id === "kickups");
   const id = /ball control|dribbl/.test(n)
     ? "ballControl"
     : /run\s*\/\s*walk|conditioning/.test(n)
