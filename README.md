@@ -63,3 +63,11 @@ The workflow installs locked dependencies, runs unit tests and TypeScript, gener
 No Expo account, EAS subscription, or repository secrets are needed. The APK bundles its JavaScript and runs without Metro or Expo Go. It supports ARM64 phones and x86_64 emulators. It uses Expo's generated development signing key, so treat it as a testing build. Production/Google Play distribution will require a private release signing key and a separate signing workflow. Changing signing keys can require uninstalling the previous app, so export your local data first.
 
 The workflow has been reviewed and the local tests run; a hosted GitHub Actions build still needs to run after these files are pushed to your repository.
+
+## Automatic releases and Android build numbers
+
+Every successful push build on `main` or `master` now publishes a GitHub prerelease with a direct APK download and checksum. Manual runs on those branches also publish. Pull requests build and upload artifacts without release permissions.
+
+The workflow sets Android `versionCode` to `github.run_number` before Expo prebuild. The app version stays at the `expo.version` value in `app.json`. Release tags use `v<app version>-build.<run number>` (for example, `v1.0.0-build.6`). Failed runs can leave gaps in the sequence. Reruns keep the same number and preserve an already-published release; an interrupted draft upload can be retried. Version edits happen only in the runner, with no automatic commits or push loops. Builds are not canceled when another push arrives.
+
+Open the repository's **Releases** page or the build's summary for a direct install download. Installing a higher build number with the same app ID and signing key should update the installed app while keeping its data. The existing manually published preview remains available.

@@ -10,15 +10,13 @@ on:
 permissions:
   contents: read
 
-concurrency:
-  group: android-apk-${{ github.ref }}
-  cancel-in-progress: true
-
 jobs:
   build:
     name: Test and build standalone APK
     runs-on: ubuntu-24.04
     timeout-minutes: 45
+    outputs:
+      version: ${{ steps.version.outputs.version }}
     env:
       CI: '1'
       EXPO_NO_TELEMETRY: '1'
@@ -58,6 +56,26 @@ jobs:
       - name: Set up Gradle cache
         uses: gradle/actions/setup-gradle@v4
 
+      - name: Set Android build number
+        id: version
+        env:
+          BUILD_NUMBER: ${{ github.run_number }}
+        run: |
+          node <<'JS'
+          const fs = require('node:fs');
+          const number = Number(process.env.BUILD_NUMBER);
+          if (!Number.isInteger(number) || number < 1 || number > 2100000000) {
+            throw new Error('Android build number is outside the supported range');
+          }
+          const config = JSON.parse(fs.readFileSync('app.json', 'utf8'));
+          if (!/^\d+\.\d+\.\d+$/.test(config.expo.version)) {
+            throw new Error('App version must use major.minor.patch format');
+          }
+          config.expo.android.versionCode = number;
+          fs.writeFileSync('app.json', JSON.stringify(config, null, 2) + '\n');
+          fs.appendFileSync(process.env.GITHUB_OUTPUT, `version=${config.expo.version}\n`);
+          JS
+
       - name: Generate Android project
         run: npx --no-install expo prebuild --platform android --no-install
 
@@ -94,3 +112,61 @@ jobs:
           This APK includes its JavaScript bundle and needs no Expo Go, account, or backend.
           It uses a development signing key and is intended for testing, not Google Play distribution.
           SUMMARY
+
+  release:
+    name: Publish downloadable APK release
+    needs: build
+    if: github.event_name != 'pull_request' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      RELEASE_TAG: v${{ needs.build.outputs.version }}-build.${{ github.run_number }}
+      SOURCE_SHA: ${{ github.sha }}
+      BUILD_NUMBER: ${{ github.run_number }}
+      APP_VERSION: ${{ needs.build.outputs.version }}
+    steps:
+      - name: Download APK from this build
+        uses: actions/download-artifact@v4
+        with:
+          name: touchline-android-preview-${{ github.run_number }}
+          path: apk
+
+      - name: Verify APK checksum
+        working-directory: apk
+        run: sha256sum --check touchline-preview.apk.sha256
+
+      - name: Publish preview release
+        run: |
+          # Rerunning a successful workflow keeps its existing, immutable release.
+          if gh release view "$RELEASE_TAG" --json isDraft > release.json 2>/dev/null; then
+            if [ "$(jq -r .isDraft release.json)" = false ]; then
+              echo "Release $RELEASE_TAG is already published; leaving it unchanged."
+              exit 0
+            fi
+          else
+            cat > notes.md <<NOTES
+          Download **touchline-preview.apk** directly on your Android phone and open it to install.
+
+          App version: **$APP_VERSION** · Android build number: **$BUILD_NUMBER**
+          Source commit: $SOURCE_SHA
+
+          This APK runs without Expo Go or a backend. It is a development-signed preview; the installed app label is currently Touchline. A SHA-256 checksum is included.
+          NOTES
+            gh release create "$RELEASE_TAG" \
+              --target "$SOURCE_SHA" \
+              --title "Outpace $APP_VERSION — Build $BUILD_NUMBER" \
+              --draft --prerelease --notes-file notes.md
+          fi
+          # A failed upload can be retried while the release remains a draft.
+          gh release upload "$RELEASE_TAG" \
+            apk/touchline-preview.apk apk/touchline-preview.apk.sha256 --clobber
+          gh release edit "$RELEASE_TAG" --draft=false
+
+      - name: Add direct APK link to run summary
+        run: |
+          echo "### Outpace build $BUILD_NUMBER" >> "$GITHUB_STEP_SUMMARY"
+          echo "[Download APK](https://github.com/$GH_REPO/releases/download/$RELEASE_TAG/touchline-preview.apk)" >> "$GITHUB_STEP_SUMMARY"
