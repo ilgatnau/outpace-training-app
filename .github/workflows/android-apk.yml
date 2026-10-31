@@ -89,14 +89,14 @@ jobs:
         run: |
           mkdir -p artifacts/android
           test -s android/app/build/outputs/apk/release/app-release.apk
-          cp android/app/build/outputs/apk/release/app-release.apk artifacts/android/touchline-preview.apk
+          cp android/app/build/outputs/apk/release/app-release.apk artifacts/android/outpace-preview.apk
           cd artifacts/android
-          sha256sum touchline-preview.apk > touchline-preview.apk.sha256
+          sha256sum outpace-preview.apk > outpace-preview.apk.sha256
 
       - name: Upload APK and checksum
         uses: actions/upload-artifact@v4
         with:
-          name: touchline-android-preview-${{ github.run_number }}
+          name: outpace-android-preview-${{ github.run_number }}
           path: artifacts/android/
           if-no-files-found: error
           retention-days: 14
@@ -104,9 +104,9 @@ jobs:
       - name: Publish download instructions
         run: |
           cat >> "$GITHUB_STEP_SUMMARY" <<'SUMMARY'
-          ### Touchline Android preview
-          Download **touchline-android-preview** from this run's **Artifacts** section.
-          Unzip it and install `touchline-preview.apk` on an Android device.
+          ### Outpace Android preview
+          Download **outpace-android-preview** from this run's **Artifacts** section.
+          Unzip it and install `outpace-preview.apk` on an Android device.
           A SHA-256 checksum is included. The APK supports ARM64 phones and x86_64 emulators.
 
           This APK includes its JavaScript bundle and needs no Expo Go, account, or backend.
@@ -132,12 +132,12 @@ jobs:
       - name: Download APK from this build
         uses: actions/download-artifact@v4
         with:
-          name: touchline-android-preview-${{ github.run_number }}
+          name: outpace-android-preview-${{ github.run_number }}
           path: apk
 
       - name: Verify APK checksum
         working-directory: apk
-        run: sha256sum --check touchline-preview.apk.sha256
+        run: sha256sum --check outpace-preview.apk.sha256
 
       - name: Publish preview release
         run: |
@@ -149,12 +149,12 @@ jobs:
             fi
           else
             cat > notes.md <<NOTES
-          Download **touchline-preview.apk** directly on your Android phone and open it to install.
+          Download **outpace-preview.apk** directly on your Android phone and open it to install.
 
           App version: **$APP_VERSION** · Android build number: **$BUILD_NUMBER**
           Source commit: $SOURCE_SHA
 
-          This APK runs without Expo Go or a backend. It is a development-signed preview; the installed app label is currently Touchline. A SHA-256 checksum is included.
+          This APK runs without Expo Go or a backend. It is a development-signed preview; the installed app label is Outpace. A SHA-256 checksum is included.
           NOTES
             gh release create "$RELEASE_TAG" \
               --target "$SOURCE_SHA" \
@@ -163,10 +163,10 @@ jobs:
           fi
           # A failed upload can be retried while the release remains a draft.
           gh release upload "$RELEASE_TAG" \
-            apk/touchline-preview.apk apk/touchline-preview.apk.sha256 --clobber
+            apk/outpace-preview.apk apk/outpace-preview.apk.sha256 --clobber
           gh release edit "$RELEASE_TAG" --draft=false
 
       - name: Add direct APK link to run summary
         run: |
           echo "### Outpace build $BUILD_NUMBER" >> "$GITHUB_STEP_SUMMARY"
-          echo "[Download APK](https://github.com/$GH_REPO/releases/download/$RELEASE_TAG/touchline-preview.apk)" >> "$GITHUB_STEP_SUMMARY"
+          echo "[Download APK](https://github.com/$GH_REPO/releases/download/$RELEASE_TAG/outpace-preview.apk)" >> "$GITHUB_STEP_SUMMARY"

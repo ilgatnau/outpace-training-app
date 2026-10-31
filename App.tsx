@@ -133,7 +133,7 @@ const fmt = (n: number) =>
   `${Math.floor(n / 60)}:${String(Math.floor(n % 60)).padStart(2, "0")}`;
 function notify(message: string) {
   if (Platform.OS === "web") globalThis.alert(message);
-  else Alert.alert("Touchline", message);
+  else Alert.alert("Outpace", message);
 }
 export default function App() {
   const [data, setData] = useState<State>(initialState),
@@ -193,7 +193,7 @@ export default function App() {
   if (!ready)
     return (
       <SafeAreaView style={s.root}>
-        <Text style={[s.title, { margin: 30 }]}>TOUCHLINE</Text>
+        <Text style={[s.title, { margin: 30 }]}>OUTPACE</Text>
         <Text style={[s.body, { margin: 30 }]}>
           {error || "Getting your pitch ready…"}
         </Text>
@@ -207,7 +207,7 @@ export default function App() {
         <View style={s.brand}>
           <View style={s.row}>
             <Ionicons name="football" size={25} color={C.lime} />
-            <Text style={s.brandText}>TOUCHLINE</Text>
+            <Text style={s.brandText}>OUTPACE</Text>
           </View>
           <View style={s.local}>
             <View style={s.dot} />
@@ -529,7 +529,7 @@ export default function App() {
                     onPress={() =>
                       Share.share({
                         message: JSON.stringify(data, null, 2),
-                        title: "Touchline backup",
+                        title: "Outpace backup",
                       }).catch(() => notify("Export was unavailable."))
                     }
                   />
@@ -1386,7 +1386,7 @@ function Restore({
     <>
       <FormHead title="Restore your backup." onCancel={onCancel} />
       <Text style={s.body}>
-        Paste an exported Touchline JSON backup. Restoring replaces all current
+        Paste an exported Outpace JSON backup. Restoring replaces all current
         data.
       </Text>
       <Field label="Backup JSON" value={raw} onChange={R} multiline />

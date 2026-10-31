@@ -45,22 +45,29 @@ jobs:
         with:
           github-token: ${{ github.token }}
           run-id: ${{ inputs.build_run_id }}
-          pattern: touchline-android-preview-*
+          pattern: "*-android-preview-*"
           merge-multiple: true
           path: apk
 
       - name: Verify APK checksum
         working-directory: apk
         run: |
-          test -s touchline-preview.apk
-          sha256sum --check touchline-preview.apk.sha256
+          # Older successful runs used the previous branding in their filenames.
+          if [ -f touchline-preview.apk ]; then
+            sha256sum --check touchline-preview.apk.sha256
+            mv touchline-preview.apk outpace-preview.apk
+            rm touchline-preview.apk.sha256
+            sha256sum outpace-preview.apk > outpace-preview.apk.sha256
+          fi
+          test -s outpace-preview.apk
+          sha256sum --check outpace-preview.apk.sha256
 
       - name: Publish APK as a GitHub prerelease
         env:
           SOURCE_SHA: ${{ steps.source.outputs.sha }}
         run: |
           cat > release-notes.md <<'NOTES'
-          Download **touchline-preview.apk** below directly on your Android phone, then open it to install. Android may ask you to allow installation from your browser.
+          Download **outpace-preview.apk** below directly on your Android phone, then open it to install. Android may ask you to allow installation from your browser.
 
           **Outpace training app — preview**
           - Local player profiles, training routines and interval timer.
@@ -68,12 +75,12 @@ jobs:
           - On-device storage and backup export/restore.
           - ARM64 phones and x86_64 emulators; no Expo Go or backend required.
 
-          This is a development-signed testing build. The current app label is Touchline. Export your local data before uninstalling or switching signing keys. A SHA-256 checksum is included as a separate download.
+          This is a development-signed testing build. Export your local data before uninstalling or switching signing keys. A SHA-256 checksum is included as a separate download.
           NOTES
           gh release create "$RELEASE_TAG" \
             --target "$SOURCE_SHA" \
             --title "Outpace $RELEASE_TAG" \
             --prerelease \
             --notes-file release-notes.md \
-            apk/touchline-preview.apk \
-            apk/touchline-preview.apk.sha256
+            apk/outpace-preview.apk \
+            apk/outpace-preview.apk.sha256
