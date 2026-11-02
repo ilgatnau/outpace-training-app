@@ -1,4 +1,4 @@
-import { metrics, parseState, State, validDob } from "./domain";
+import { metrics, parseState, State, validDob, exerciseTiming } from "./domain";
 const obj = (v: any) => v && typeof v === "object";
 const text = (v: any) => typeof v === "string";
 const num = (v: any, min = 0, max = 1e6) =>
@@ -33,7 +33,10 @@ export function validateBackup(raw: string): State {
         !num(e.sets, 1, 20) ||
         !Number.isInteger(e.reps) ||
         !num(e.reps, 1, 50) ||
-        !num(e.work, 1, 3600) ||
+        (e.timing !== undefined &&
+          !["countdown", "stopwatch"].includes(e.timing)) ||
+        !num(e.work, exerciseTiming(e) === "stopwatch" ? 0 : 1, 3600) ||
+        (exerciseTiming(e) === "stopwatch" && !num(e.distance, 0.01)) ||
         !num(e.rest, 0, 3600) ||
         !num(e.setRest, 0, 3600) ||
         (e.distance !== undefined && !num(e.distance, 0.01))
@@ -48,7 +51,13 @@ export function validateBackup(raw: string): State {
       !Object.hasOwn(metrics, r.metric) ||
       !num(r.value, 0.00001) ||
       !text(r.method) ||
-      !r.method.trim()
+      !r.method.trim() ||
+      (r.sessionId !== undefined && !text(r.sessionId)) ||
+      (r.exerciseName !== undefined && !text(r.exerciseName)) ||
+      (r.distance !== undefined && !num(r.distance, 0.01)) ||
+      (r.set !== undefined &&
+        (!Number.isInteger(r.set) || !num(r.set, 1, 20))) ||
+      (r.rep !== undefined && (!Number.isInteger(r.rep) || !num(r.rep, 1, 50)))
     )
       throw Error("Invalid result");
   });

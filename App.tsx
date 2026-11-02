@@ -21,6 +21,8 @@ import {
   age,
   comparison,
   elapsedPhase,
+  exerciseTiming,
+  exerciseWorkLabel,
   Exercise,
   initialState,
   Measurement,
@@ -40,6 +42,7 @@ import {
 import { readState, writeState } from "./src/storage";
 import { exerciseGuides } from "./src/exercises";
 import { ExerciseGuide } from "./src/ExerciseGuide";
+import { sprintResult, sprintSummary, stopwatchSeconds } from "./src/sprints";
 const C = {
   bg: "#09130F",
   card: "#14231C",
@@ -146,6 +149,7 @@ export default function App() {
     [active, setActive] = useState<Routine | null>(null);
   const [editingRoutine, setEditingRoutine] = useState<Routine | null>(null);
   const [sessionDraft, setSessionDraft] = useState<{
+    id?: string;
     routine: string;
     seconds: number;
   } | null>(null);
@@ -231,9 +235,12 @@ export default function App() {
             <Timer
               routine={active}
               onCancel={() => setActive(null)}
-              onDone={(seconds) => {
+              onResult={(result) =>
+                update((d) => ({ ...d, results: [...d.results, result] }))
+              }
+              onDone={(seconds, id) => {
                 setActive(null);
-                setSessionDraft({ routine: active.name, seconds });
+                setSessionDraft({ id, routine: active.name, seconds });
                 setPage("log");
               }}
             />
@@ -643,7 +650,9 @@ function RoutineCard({
         <View style={{ flex: 1 }}>
           <Text style={s.h3}>{routine.name}</Text>
           <Text style={s.tiny}>
-            {Math.ceil(list.reduce((a, p) => a + p.seconds, 0) / 60)} min ·{" "}
+            {list.some((p) => p.manual) ? "Sprint stopwatch + " : ""}
+            {Math.ceil(list.reduce((a, p) => a + p.seconds, 0) / 60)} min{" "}
+            {list.some((p) => p.manual) ? "countdown time" : ""} ·{" "}
             {routine.exercises.length} exercises
           </Text>
         </View>
@@ -651,8 +660,7 @@ function RoutineCard({
       {routine.exercises.map((e) => (
         <View key={e.id}>
           <Text style={s.body}>
-            {e.name} · {e.sets} × {e.reps} · {e.work}s work
-            {e.distance ? ` · ${e.distance} m` : ""}
+            {e.name} · {e.sets} × {e.reps} · {exerciseWorkLabel(e)}
           </Text>
           <ExerciseGuide exercise={e} />
         </View>
@@ -741,10 +749,12 @@ function RoutineForm({
       distance: "",
     });
   const [selectedGuide, setSelectedGuide] = useState<string | undefined>();
+  const [timing, setTiming] = useState<"countdown" | "stopwatch">("countdown");
   function selectPreset(id: string) {
     setSelectedGuide(id || undefined);
     const guide = exerciseGuides.find((g) => g.id === id);
     if (!guide) {
+      setTiming("countdown");
       set({
         name: "",
         sets: "3",
@@ -757,6 +767,7 @@ function RoutineForm({
       return;
     }
     const d = guide.defaults;
+    setTiming(exerciseTiming({ ...d, name: guide.title, guideId: guide.id }));
     set({
       name: guide.title,
       sets: String(d.sets),
@@ -768,7 +779,10 @@ function RoutineForm({
     });
   }
   function add() {
-    const nums = ["sets", "reps", "work"] as const;
+    const nums =
+      timing === "stopwatch"
+        ? (["sets", "reps"] as const)
+        : (["sets", "reps", "work"] as const);
     if (
       !fields.name.trim() ||
       nums.some((k) => !positive(fields[k])) ||
@@ -783,13 +797,14 @@ function RoutineForm({
       ) ||
       Number(fields.sets) > 20 ||
       Number(fields.reps) > 50 ||
-      Number(fields.work) > 3600 ||
+      (timing === "countdown" && Number(fields.work) > 3600) ||
+      (timing === "stopwatch" && !positive(fields.distance)) ||
       Number(fields.rest) > 3600 ||
       Number(fields.setRest) > 3600 ||
       (fields.distance !== "" && !positive(fields.distance))
     )
       return notify(
-        "Use a name, whole sets (1–20), whole reps (1–50), work time (1–3600 sec), and recovery (0–3600 sec). Distance is optional.",
+        "Use a name, whole sets (1–20), whole reps (1–50), countdown work (1–3600 sec), and recovery (0–3600 sec). A sprint stopwatch needs a positive distance.",
       );
     setItems([
       ...items,
@@ -798,7 +813,8 @@ function RoutineForm({
         name: fields.name.trim(),
         sets: +fields.sets,
         reps: +fields.reps,
-        work: +fields.work,
+        work: timing === "stopwatch" ? 0 : +fields.work,
+        timing,
         rest: +fields.rest,
         setRest: +fields.setRest,
         distance: fields.distance ? +fields.distance : undefined,
@@ -817,7 +833,8 @@ function RoutineForm({
             {i + 1}. {e.name}
           </Text>
           <Text style={s.body}>
-            {e.sets} × {e.reps} · {e.work}s work · {e.rest}s / {e.setRest}s rest
+            {e.sets} × {e.reps} · {exerciseWorkLabel(e)} · {e.rest}s /{" "}
+            {e.setRest}s rest
           </Text>
           <ExerciseGuide exercise={e} />
           <TouchableOpacity
@@ -857,25 +874,46 @@ function RoutineForm({
             expanded
           />
         )}
-        {Object.entries(fields).map(([k, v]) => (
-          <Field
-            key={k}
-            label={
-              {
-                name: "Exercise name",
-                sets: "Sets",
-                reps: "Repetitions per set",
-                work: "Work duration (seconds)",
-                rest: "Rest between repetitions (seconds)",
-                setRest: "Rest between sets (seconds)",
-                distance: "Distance (m, optional)",
-              }[k]!
-            }
-            value={v}
-            numeric={k !== "name"}
-            onChange={(v) => set({ ...fields, [k]: v })}
-          />
-        ))}
+        <Text style={s.label}>How to time the exercise</Text>
+        <Chips
+          values={["Countdown", "Sprint stopwatch"]}
+          selected={timing === "stopwatch" ? "Sprint stopwatch" : "Countdown"}
+          onSelect={(v) => {
+            setTiming(v === "Sprint stopwatch" ? "stopwatch" : "countdown");
+            if (v === "Countdown" && +fields.work === 0)
+              set({ ...fields, work: "30" });
+          }}
+        />
+        {timing === "stopwatch" && (
+          <Text style={s.body}>
+            Tap Start and Finish for every sprint. Recovery counts down; the
+            next sprint waits for your tap. Times are saved automatically.
+          </Text>
+        )}
+        {Object.entries(fields)
+          .filter(([k]) => timing !== "stopwatch" || k !== "work")
+          .map(([k, v]) => (
+            <Field
+              key={k}
+              label={
+                {
+                  name: "Exercise name",
+                  sets: "Sets",
+                  reps: "Repetitions per set",
+                  work: "Work duration (seconds)",
+                  rest: "Rest between repetitions (seconds)",
+                  setRest: "Rest between sets (seconds)",
+                  distance:
+                    timing === "stopwatch"
+                      ? "Sprint distance (m)"
+                      : "Distance (m, optional)",
+                }[k]!
+              }
+              value={v}
+              numeric={k !== "name"}
+              onChange={(v) => set({ ...fields, [k]: v })}
+            />
+          ))}
         <Button title="Add exercise to routine" secondary onPress={add} />
       </View>
       <Button
@@ -897,66 +935,136 @@ function Timer({
   routine,
   onCancel,
   onDone,
+  onResult,
 }: {
   routine: Routine;
   onCancel: () => void;
-  onDone: (seconds: number) => void;
+  onDone: (seconds: number, sessionId: string) => void;
+  onResult: (result: Result) => void;
 }) {
-  const list = useRef(phases(routine)).current,
-    [index, setIndex] = useState(0),
+  const list = useRef(phases(routine)).current;
+  const sessionId = useRef(uid()).current;
+  const timer = useRef({
+    index: 0,
+    remaining: list[0].seconds,
+    running: false,
+    started: null as number | null,
+  });
+  const [index, setIndex] = useState(0),
     [remaining, setRemaining] = useState(list[0].seconds),
     [running, setRunning] = useState(false),
+    [watch, setWatch] = useState(0),
     [finished, setFinished] = useState(false),
-    [confirm, setConfirm] = useState(false);
-  const clock = useRef(Date.now()),
-    elapsed = useRef(0),
-    state = useRef({ index: 0, remaining: list[0].seconds });
-  const cue = (text: string) => {
-    Vibration.vibrate(250);
-    Speech.speak(text);
+    [confirm, setConfirm] = useState(false),
+    [attempts, setAttempts] = useState<Result[]>([]);
+  const wall = useRef(Date.now()),
+    elapsed = useRef(0);
+  const cue = (message: string) => {
+    Vibration.vibrate(150);
+    void Speech.speak(message);
   };
+  function sync() {
+    const t = timer.current;
+    setIndex(t.index);
+    setRemaining(t.remaining);
+    setRunning(t.running);
+  }
+  function tick() {
+    const t = timer.current;
+    if (!t.running) return;
+    if (list[t.index].manual) {
+      if (t.started !== null) setWatch((performance.now() - t.started) / 1000);
+      return;
+    }
+    const now = Date.now(),
+      delta = Math.max(0, (now - wall.current) / 1000);
+    wall.current = now;
+    const next = elapsedPhase(list, t.index, t.remaining, delta);
+    let capacity = t.remaining;
+    for (let i = t.index + 1; i < list.length && !list[i].manual; i++)
+      capacity += list[i].seconds;
+    elapsed.current += Math.min(delta, capacity);
+    const changed = next.index !== t.index;
+    t.index = next.index;
+    t.remaining = next.remaining;
+    if (next.done) {
+      t.running = false;
+      setFinished(true);
+      cue("Session complete");
+    } else if (list[next.index].manual) {
+      t.running = false;
+      t.started = null;
+      setWatch(0);
+      if (changed) cue("Ready for the next sprint");
+    } else if (changed) cue(list[next.index].recovery ? "Recover" : "Work");
+    sync();
+  }
   useEffect(() => {
-    if (!running) return;
-    clock.current = Date.now();
-    const tick = () => {
-      const now = Date.now(),
-        delta = Math.floor((now - clock.current) / 1000);
-      if (delta < 1) return;
-      clock.current += delta * 1000;
-      const prev = state.current;
-      const next = elapsedPhase(list, prev.index, prev.remaining, delta);
-      elapsed.current += Math.min(
-        delta,
-        list
-          .slice(prev.index + 1)
-          .reduce((a, p) => a + p.seconds, prev.remaining),
-      );
-      state.current = next;
-      setIndex(next.index);
-      setRemaining(next.remaining);
-      if (next.done) {
-        setRunning(false);
-        setFinished(true);
-        cue("Session complete");
-      } else if (next.index !== prev.index)
-        cue(list[next.index].label === "WORK" ? "Work" : "Recover");
-    };
-    const id = setInterval(tick, 250);
+    const interval = setInterval(tick, 40);
     const sub = AppState.addEventListener("change", (status) => {
       if (status === "active") tick();
     });
     return () => {
-      clearInterval(id);
+      clearInterval(interval);
       sub.remove();
-    };
-  }, [running, list]);
-  useEffect(
-    () => () => {
       void Speech.stop();
-    },
-    [],
+    };
+  }, []);
+  function advance(auto: boolean) {
+    const t = timer.current;
+    t.started = null;
+    setWatch(0);
+    if (t.index === list.length - 1) {
+      t.running = false;
+      t.remaining = 0;
+      setFinished(true);
+      cue("Session complete");
+    } else {
+      t.index++;
+      t.remaining = list[t.index].seconds;
+      t.running = auto && !list[t.index].manual;
+      wall.current = Date.now();
+      if (t.running) cue(list[t.index].recovery ? "Recover" : "Work");
+    }
+    sync();
+  }
+  const p = list[index],
+    exercise = routine.exercises.find((e) => e.id === p.exerciseId)!;
+  function startSprint() {
+    const t = timer.current;
+    if (t.running || t.started !== null) return;
+    t.started = performance.now();
+    t.running = true;
+    setWatch(0);
+    sync();
+  }
+  function finishSprint() {
+    const t = timer.current;
+    if (t.started === null || !t.running) return;
+    const stopped = performance.now();
+    let seconds: number;
+    try {
+      seconds = stopwatchSeconds(t.started, stopped);
+    } catch {
+      return;
+    }
+    // Clear the start before saving so duplicate finish taps cannot record twice.
+    t.started = null;
+    t.running = false;
+    elapsed.current += seconds;
+    const result = sprintResult(exercise, seconds, p.set, p.rep, sessionId);
+    onResult(result);
+    setAttempts((previous) => [...previous, result]);
+    advance(true);
+  }
+  function pauseCountdown() {
+    tick();
+    timer.current.running = false;
+    sync();
+  }
+  const groups = Array.from(
+    new Set(attempts.map((r) => r.method + "|" + r.exerciseName)),
   );
-  const p = list[index];
   return (
     <>
       <Text style={s.eyebrow}>{routine.name}</Text>
@@ -966,77 +1074,138 @@ function Timer({
           s.card,
           {
             alignItems: "center",
-            paddingVertical: 44,
+            paddingVertical: 30,
             borderColor: p.recovery ? C.blue : C.lime,
             borderWidth: 1,
           },
         ]}
       >
         <Text style={[s.eyebrow, { color: p.recovery ? C.blue : C.lime }]}>
-          {finished ? "SESSION COMPLETE" : p.label}
+          {finished
+            ? "SESSION COMPLETE"
+            : p.manual
+              ? running
+                ? "SPRINT STOPWATCH"
+                : "READY TO SPRINT"
+              : p.label}
         </Text>
-        <Text style={s.timer}>{fmt(remaining)}</Text>
+        <Text
+          accessibilityLabel={
+            p.manual ? "Sprint stopwatch" : "Interval countdown"
+          }
+          style={[s.timer, { fontSize: 68, marginVertical: 18 }]}
+        >
+          {p.manual && !finished ? watch.toFixed(2) : fmt(Math.ceil(remaining))}
+        </Text>
         <Text style={s.body}>
-          Set {p.set} · Rep {p.rep}
+          {p.manual && !finished
+            ? `${exercise.distance} m · manual timing`
+            : `${p.recovery ? "Recovery countdown" : "Work countdown"}`}
         </Text>
-        <Text style={s.tiny}>
-          Phase {index + 1} of {list.length}
+        <Text style={s.body}>
+          Set {p.set} of {exercise.sets} · Rep {p.rep} of {exercise.reps}
         </Text>
       </View>
-      {!finished && (
-        <ExerciseGuide
-          key={p.exerciseId}
-          exercise={routine.exercises.find((e) => e.id === p.exerciseId)!}
-        />
-      )}
-      <Text style={s.body}>
-        Sound and vibration cues are enabled. Background notification delivery
-        is not guaranteed; keep the app visible during timed work.
-      </Text>
       {finished ? (
         <Button
           title="Save & rate session"
-          onPress={() => onDone(elapsed.current)}
+          onPress={() => onDone(elapsed.current, sessionId)}
         />
-      ) : (
+      ) : p.manual ? (
         <>
           <Button
-            title={running ? "Pause" : "Start / resume"}
-            onPress={() => {
-              if (!running) cue(p.recovery ? "Recover" : "Work");
-              setRunning(!running);
-            }}
+            title={running ? "Finish sprint" : "Start sprint"}
+            onPress={running ? finishSprint : startSprint}
           />
-          <Button
-            title="Skip current interval"
-            secondary
-            onPress={() => {
-              if (index === list.length - 1) {
-                setFinished(true);
-                setRunning(false);
-                setRemaining(0);
-              } else {
-                const n = index + 1;
-                state.current = { index: n, remaining: list[n].seconds };
-                setIndex(n);
-                setRemaining(list[n].seconds);
-                clock.current = Date.now();
-                cue(list[n].recovery ? "Recover" : "Work");
-              }
-            }}
-          />
+          {running && (
+            <Button
+              title="Cancel this attempt"
+              secondary
+              onPress={() => {
+                timer.current.started = null;
+                timer.current.running = false;
+                setWatch(0);
+                sync();
+              }}
+            />
+          )}
+          <Text style={s.body}>
+            Tap Start as the player starts, then Finish when they cross the
+            finish cone. The time saves automatically; recovery starts
+            immediately. Keep the app visible. Manual taps include reaction-time
+            error.
+          </Text>
         </>
+      ) : (
+        <Button
+          title={
+            running ? "Pause recovery / timer" : "Start / resume countdown"
+          }
+          onPress={() => {
+            if (running) pauseCountdown();
+            else {
+              wall.current = Date.now();
+              timer.current.running = true;
+              sync();
+            }
+          }}
+        />
       )}
+      {!finished && (
+        <Button
+          title={
+            p.manual ? "Skip sprint without recording" : "Skip current interval"
+          }
+          secondary
+          onPress={() => advance(true)}
+        />
+      )}
+      {!!attempts.length && (
+        <View style={s.card}>
+          <Text style={s.h2}>Recorded sprint times</Text>
+          <Text style={s.tiny}>
+            Saved on this device, including if you exit the session.
+          </Text>
+          {groups.map((key) => {
+            const results = attempts.filter(
+                (r) => r.method + "|" + r.exerciseName === key,
+              ),
+              stats = sprintSummary(results)!;
+            return (
+              <View key={key} style={{ marginTop: 15 }}>
+                <Text style={s.h3}>
+                  {results[0].exerciseName} · {results[0].distance} m
+                </Text>
+                <Text style={s.body}>
+                  Best {stats.best.toFixed(2)} s · Average{" "}
+                  {stats.average.toFixed(2)} s
+                </Text>
+                {results.map((r) => (
+                  <Text key={r.id} style={s.body}>
+                    Set {r.set} · Rep {r.rep}: {r.value.toFixed(2)} s
+                  </Text>
+                ))}
+              </View>
+            );
+          })}
+        </View>
+      )}
+      {!finished && <ExerciseGuide key={p.exerciseId} exercise={exercise} />}
       {confirm ? (
         <View style={s.card}>
           <Text style={s.body}>
-            Save the work completed so far or discard this session?
+            Finish and rate the session, or leave without a session log.
+            Recorded sprint times are already saved and will be kept.
           </Text>
           <Button
-            title="Finish early & save"
-            onPress={() => onDone(elapsed.current)}
+            title="Finish early & save session"
+            onPress={() => onDone(elapsed.current, sessionId)}
           />
-          <Button title="Discard session" secondary onPress={onCancel} />
+          <Button
+            title="Exit without session log"
+            secondary
+            onPress={onCancel}
+          />
           <Button
             title="Continue training"
             secondary
@@ -1048,7 +1217,11 @@ function Timer({
           title="End session"
           secondary
           onPress={() => {
-            setRunning(false);
+            if (p.manual && timer.current.running)
+              return notify(
+                "Finish the sprint or cancel this attempt before ending the session.",
+              );
+            pauseCountdown();
             setConfirm(true);
           }}
         />
@@ -1061,7 +1234,7 @@ function SessionForm({
   onSave,
   onCancel,
 }: {
-  draft: { routine: string; seconds: number } | null;
+  draft: { id?: string; routine: string; seconds: number } | null;
   onSave: (v: Session) => void;
   onCancel: () => void;
 }) {
@@ -1108,7 +1281,7 @@ function SessionForm({
               "Enter a session name and duration between 0 and 1440 minutes.",
             );
           onSave({
-            id: uid(),
+            id: draft?.id || uid(),
             date: today(),
             routine: name.trim(),
             seconds: Math.round(+minutes * 60),
@@ -1398,6 +1571,25 @@ function Progress({
               Bars show recorded results.
             </Text>
           </View>
+          {Array.from(
+            new Set(
+              c.points.filter((r) => r.sessionId).map((r) => r.sessionId),
+            ),
+          )
+            .reverse()
+            .map((id) => {
+              const results = c.points.filter((r) => r.sessionId === id),
+                summary = sprintSummary(results)!;
+              return (
+                <View key={id} style={s.card}>
+                  <Text style={s.h3}>Sprint session · {results[0].date}</Text>
+                  <Text style={s.body}>
+                    {summary.count} sprints · Best {summary.best.toFixed(2)} s ·
+                    Average {summary.average.toFixed(2)} s
+                  </Text>
+                </View>
+              );
+            })}
           {c.points
             .slice()
             .reverse()
@@ -1410,6 +1602,11 @@ function Progress({
                   <Text style={s.tiny}>{r.date}</Text>
                 </View>
                 <Text style={s.tiny}>{r.method}</Text>
+                {r.set !== undefined && (
+                  <Text style={s.tiny}>
+                    {r.exerciseName} · Set {r.set} · Rep {r.rep}
+                  </Text>
+                )}
                 <TouchableOpacity onPress={() => onDelete(r.id)}>
                   <Text style={s.delete}>Remove result</Text>
                 </TouchableOpacity>

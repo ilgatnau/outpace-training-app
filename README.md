@@ -42,7 +42,7 @@ Body shape is represented by optional adult waist measurements rather than subje
 
 ## Verification in this workspace
 
-- 28 unit tests pass (`npm test`).
+- 40 unit tests pass (`npm test`).
 - TypeScript passes (`npm run typecheck`).
 - iOS and Android JavaScript / Hermes bundle exports pass (not signed native builds).
 - Production web export passes (`npm run build:web`).
@@ -83,3 +83,13 @@ Each preset has a locally bundled cone illustration plus setup instructions, mov
 Existing starter exercises receive matching guides without changing their stored data. New exercises keep an optional guide ID, so renaming a preset does not lose its instructions. Unknown custom exercises do not receive invented technique advice. The images work offline and are included in APK builds. See `artifacts/exercise-guide.png` for a preview.
 
 Kick-ups practice uses three 60-second sets with 45-second recovery by default. Its guide covers drop/tap/catch progressions, alternating feet, and a clear cone-marked practice space. Record the longest streak and the practice rules in session notes when comparing attempts.
+
+## Manual sprint stopwatch
+
+10 m acceleration, 20 m sprint, 30 m sprint, and repeated sprints use a manual stopwatch. Tap **Start sprint** as the player starts, then **Finish sprint** at the finish cone. The elapsed time is recorded immediately with the distance, set, repetition, session ID, and manual-timing/recovery protocol. There is no six-second cutoff. The configured recovery then counts down; the next sprint always waits for a fresh Start tap. Canceling an attempt or skipping a sprint records no time.
+
+The builder lets you choose **Sprint stopwatch** or **Countdown** for a custom exercise. Stopwatch mode requires a distance and hides the work-duration field. Existing sprint exercises with a distance automatically use stopwatch mode unless they explicitly choose a countdown. Kick-ups, endurance intervals, and other time-based drills continue to count down. Background countdown catch-up stops at the next manual sprint rather than automatically starting it.
+
+Sprint results save locally as soon as Finish is tapped, independently of the session rating/log. Leaving without a session log keeps saved results. Session summaries show individual attempts, best and average times. Progress separates 10/20/30 m distances and the measurement/recovery method; other distances use the custom-distance sprint category and remain separated by their distance-specific method. Results can be removed in Progress if a tap was mistaken. Backups include the new optional timing and repetition fields and remain compatible with older data.
+
+A stopwatch refreshes its display at intervals but measures elapsed time from the Start and Finish tap timestamps, rounded to 0.01 s. Display precision does not imply measurement accuracy: manual reaction time affects results. Keep the phone visible, use the same timing method, and treat small differences cautiously.

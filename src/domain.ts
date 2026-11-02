@@ -15,6 +15,7 @@ export type Exercise = {
   setRest: number;
   distance?: number;
   guideId?: string;
+  timing?: "countdown" | "stopwatch";
 };
 export type Routine = { id: string; name: string; exercises: Exercise[] };
 export type Result = {
@@ -23,6 +24,11 @@ export type Result = {
   metric: string;
   value: number;
   method: string;
+  sessionId?: string;
+  exerciseName?: string;
+  distance?: number;
+  set?: number;
+  rep?: number;
 };
 export type Measurement = {
   id: string;
@@ -52,6 +58,7 @@ export const metrics: Record<
   string,
   { label: string; unit: string; lower: boolean }
 > = {
+  sprintCustom: { label: "Custom-distance sprint", unit: "sec", lower: true },
   sprint10: { label: "10 m acceleration", unit: "sec", lower: true },
   sprint20: { label: "20 m sprint", unit: "sec", lower: true },
   sprint30: { label: "30 m sprint", unit: "sec", lower: true },
@@ -110,7 +117,23 @@ export function comparison(results: Result[], metric: string, method: string) {
     points: r,
   };
 }
+export function exerciseTiming(
+  e: Pick<Exercise, "timing" | "guideId" | "name" | "distance">,
+): "countdown" | "stopwatch" {
+  if (e.timing) return e.timing;
+  const sprint =
+    ["acceleration10", "sprint20", "sprint30", "repeatedSprints"].includes(
+      e.guideId || "",
+    ) || /sprint|acceleration/i.test(e.name);
+  return sprint && !!e.distance && e.distance > 0 ? "stopwatch" : "countdown";
+}
+export function exerciseWorkLabel(e: Exercise) {
+  return exerciseTiming(e) === "stopwatch"
+    ? `${e.distance} m · stopwatch`
+    : `${e.work}s work${e.distance ? ` · ${e.distance} m` : ""}`;
+}
 export type Phase = {
+  manual?: boolean;
   label: string;
   seconds: number;
   recovery: boolean;
@@ -126,7 +149,8 @@ export function phases(routine: Routine): Phase[] {
       for (let r = 1; r <= e.reps; r++) {
         out.push({
           label: "WORK",
-          seconds: e.work,
+          seconds: exerciseTiming(e) === "stopwatch" ? 0 : e.work,
+          manual: exerciseTiming(e) === "stopwatch",
           recovery: false,
           exercise: e.name,
           exerciseId: e.id,
@@ -154,9 +178,11 @@ export function elapsedPhase(
   remaining: number,
   elapsed: number,
 ) {
+  if (list[index].manual) return { index, remaining: 0, done: false };
   let left = remaining - elapsed;
   while (left <= 0 && index < list.length - 1) {
     index++;
+    if (list[index].manual) return { index, remaining: 0, done: false };
     left += list[index].seconds;
   }
   return {
@@ -185,7 +211,8 @@ export const initialState: State = {
           distance: 20,
           sets: 3,
           reps: 5,
-          work: 6,
+          work: 0,
+          timing: "stopwatch",
           rest: 30,
           setRest: 180,
         },
