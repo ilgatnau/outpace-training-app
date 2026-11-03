@@ -93,3 +93,7 @@ The builder lets you choose **Sprint stopwatch** or **Countdown** for a custom e
 Sprint results save locally as soon as Finish is tapped, independently of the session rating/log. Leaving without a session log keeps saved results. Session summaries show individual attempts, best and average times. Progress separates 10/20/30 m distances and the measurement/recovery method; other distances use the custom-distance sprint category and remain separated by their distance-specific method. Results can be removed in Progress if a tap was mistaken. Backups include the new optional timing and repetition fields and remain compatible with older data.
 
 A stopwatch refreshes its display at intervals but measures elapsed time from the Start and Finish tap timestamps, rounded to 0.01 s. Display precision does not imply measurement accuracy: manual reaction time affects results. Keep the phone visible, use the same timing method, and treat small differences cautiously.
+
+## Reordering exercises
+
+Open **Train → Edit routine**, then use **Move up** and **Move down** on each exercise card. Positions update immediately; the first Up and last Down controls are disabled. Tap **Save changes** near the top (or **Save routine** at the bottom) to persist the order. Leaving with Back cancels unsaved changes. The saved order is used the next time you start the routine, including all of each exercise’s sets and recovery intervals. Reordering preserves the exercise settings and guides.

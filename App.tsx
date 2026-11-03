@@ -823,10 +823,35 @@ function RoutineForm({
     ]);
     set({ ...fields, name: "" });
   }
+  function moveExercise(id: string, direction: -1 | 1) {
+    setItems((current) => {
+      const from = current.findIndex((exercise) => exercise.id === id);
+      const to = from + direction;
+      if (from < 0 || to < 0 || to >= current.length) return current;
+      const reordered = [...current];
+      [reordered[from], reordered[to]] = [reordered[to], reordered[from]];
+      return reordered;
+    });
+  }
+  function saveRoutine() {
+    if (!name.trim() || !items.length)
+      return notify("Name the routine and add at least one exercise.");
+    onSave({ id: initial?.id || uid(), name: name.trim(), exercises: items });
+  }
   return (
     <>
-      <FormHead title="Build your session." onCancel={onCancel} />
+      <FormHead
+        title={initial ? "Edit your session." : "Build your session."}
+        onCancel={onCancel}
+      />
       <Field label="Routine name" value={name} onChange={setName} />
+      {items.length > 1 && (
+        <Text style={s.body}>
+          Use Move up and Move down to set the exercise order. Save your changes
+          before starting the session.
+        </Text>
+      )}
+      {initial && <Button title="Save changes" onPress={saveRoutine} />}
       {items.map((e, i) => (
         <View key={e.id} style={s.card}>
           <Text style={s.h3}>
@@ -836,6 +861,48 @@ function RoutineForm({
             {e.sets} × {e.reps} · {exerciseWorkLabel(e)} · {e.rest}s /{" "}
             {e.setRest}s rest
           </Text>
+          <View style={[s.row, { marginVertical: 8 }]}>
+            {(
+              [
+                { label: "Move up", direction: -1, icon: "arrow-up" },
+                { label: "Move down", direction: 1, icon: "arrow-down" },
+              ] as const
+            ).map((control) => {
+              const disabled =
+                control.direction === -1 ? i === 0 : i === items.length - 1;
+              return (
+                <TouchableOpacity
+                  key={control.label}
+                  accessibilityRole="button"
+                  accessibilityLabel={`${control.label}: ${e.name}`}
+                  accessibilityHint="Changes the order when you save the routine"
+                  accessibilityState={{ disabled }}
+                  disabled={disabled}
+                  onPress={() => moveExercise(e.id, control.direction)}
+                  style={{
+                    flex: 1,
+                    minHeight: 48,
+                    padding: 12,
+                    borderWidth: 1,
+                    borderColor: C.line,
+                    borderRadius: 12,
+                    opacity: disabled ? 0.35 : 1,
+                    flexDirection: "row",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: 8,
+                  }}
+                >
+                  <Ionicons name={control.icon} size={18} color={C.lime} />
+                  <Text
+                    style={{ color: C.lime, fontWeight: "600", fontSize: 13 }}
+                  >
+                    {control.label}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
           <ExerciseGuide exercise={e} />
           <TouchableOpacity
             onPress={() => setItems(items.filter((x) => x.id !== e.id))}
@@ -916,18 +983,7 @@ function RoutineForm({
           ))}
         <Button title="Add exercise to routine" secondary onPress={add} />
       </View>
-      <Button
-        title="Save routine"
-        onPress={() => {
-          if (!name.trim() || !items.length)
-            return notify("Name the routine and add at least one exercise.");
-          onSave({
-            id: initial?.id || uid(),
-            name: name.trim(),
-            exercises: items,
-          });
-        }}
-      />
+      <Button title="Save routine" onPress={saveRoutine} />
     </>
   );
 }
